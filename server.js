@@ -30,7 +30,7 @@ const io = new Server(server, {
 });
 
 // Configurações
-const PORT = process.env.PORT || 10000;
+const PORT = 10000; // Definindo a porta explicitamente como 10000
 const rooms = new Map();
 
 // Middleware de segurança
@@ -220,6 +220,7 @@ io.on('connection', (socket) => {
     });
 });
 
+// Iniciar o servidor na porta 10000
 server.listen(PORT, (10000) => {
     console.log(`Servidor rodando na porta ${10000}`);
     console.log("Modo:", process.env.NODE_ENV || "development");
