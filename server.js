@@ -1,117 +1,155 @@
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
-const crypto = require('crypto');
 const path = require('path');
 
 const app = express();
 const server = http.createServer(app);
-
-// Configuração de Segurança
 const io = new Server(server, {
-    cors: {
-        origin: [
-            "https://gamegaia.netlify.app",
-            "http://localhost:3000"
-        ],
-        methods: ["GET", "POST"],
-        credentials: true
-    },
-    connectionStateRecovery: {
-        maxDisconnectionDuration: 2 * 60 * 1000,
-        skipMiddlewares: true
-    }
+  cors: {
+    origin: "https://gamegaia.netlify.app",
+    methods: ["GET", "POST"]
+  }
 });
 
-// Banco de Dados em Memória
+// Configurações
+const PORT = process.env.PORT || 10000;
 const rooms = new Map();
-const sessions = new Map();
 
-// Middlewares
-io.use((socket, next) => {
-    const sessionToken = socket.handshake.auth.session;
-    if(sessionToken && sessions.has(sessionToken)) {
-        socket.data.session = sessions.get(sessionToken);
-    }
-    next();
-});
+app.use(express.static(path.join(__dirname, 'public')));
 
-// Lógica Principal
+// Função de hash para senhas
+const hashPassword = (pass) => 
+  crypto.createHash('sha256').update(pass).digest('hex');
+
 io.on('connection', (socket) => {
-    console.log(`Nova conexão: ${socket.id}`);
+  console.log(`Novo jogador conectado: ${socket.id}`);
 
-    // Gerenciamento de Salas
-    socket.on('create-room', ({ roomName, password }) => {
-        try {
-            const roomId = roomName.toLowerCase().trim();
-            if(rooms.has(roomId)) throw new Error('Sala já existe');
+  // Criar sala
+  socket.on('create-room', ({ name, password }) => {
+    const roomId = name.toLowerCase().trim();
+    
+    if (rooms.has(roomId)) {
+      socket.emit('error', 'Nome da sala já em uso!');
+      return;
+    }
 
-            const hashedPassword = crypto.createHash('sha256')
-                .update(password)
-                .digest('hex');
-
-            const newRoom = {
-                id: roomId,
-                password: hashedPassword,
-                players: new Set(),
-                state: initializeGameState(),
-                createdAt: Date.now()
-            };
-
-            rooms.set(roomId, newRoom);
-            socket.emit('room-created', roomId);
-            
-        } catch (error) {
-            socket.emit('server-error', {
-                code: 'ROOM_CREATION_FAILED',
-                message: error.message
-            });
-        }
-    });
-
-    // Sistema de Reconexão
-    socket.on('rejoin-room', (roomId) => {
-        if(rooms.has(roomId)) {
-            socket.join(roomId);
-            socket.emit('game-state', rooms.get(roomId).state);
-        }
-    });
-
-    // Gerenciamento de Desconexão
-    socket.on('disconnect', (reason) => {
-        console.log(`Desconexão: ${socket.id} (${reason})`);
-        rooms.forEach(room => {
-            if(room.players.has(socket.id)) {
-                room.players.delete(socket.id);
-                io.to(room.id).emit('player-left', socket.id);
-            }
-        });
-    });
-});
-
-// Funções Auxiliares
-function initializeGameState() {
-    return {
+    rooms.set(roomId, {
+      password: hashPassword(password),
+      state: JSON.stringify({
         1: { balance: 1000, recursos: { combustivel: 0, combustivel_salto: 0, escudo_quantico: 0, motor_salto: 0 }},
         2: { balance: 1000, recursos: { combustivel: 0, combustivel_salto: 0, escudo_quantico: 0, motor_salto: 0 }},
         3: { balance: 1000, recursos: { combustivel: 0, combustivel_salto: 0, escudo_quantico: 0, motor_salto: 0 }},
         4: { balance: 1000, recursos: { combustivel: 0, combustivel_salto: 0, escudo_quantico: 0, motor_salto: 0 }}
-    };
-}
+      }),
+      players: new Set()
+    });
 
-// Inicialização do Servidor
-const PORT = process.env.PORT || 10000;
-server.listen(PORT, () => {
-    console.log(`🟢 Servidor operacional na porta ${PORT}`);
-    setInterval(cleanupRooms, 60 * 60 * 1000); // Limpeza horária
+    socket.join(roomId);
+    socket.emit('room-created', roomId);
+  });
+
+  // server.js (parte crítica corrigida)
+io.on('connection', (socket) => {
+  console.log(`\n=== Nova conexão: ${socket.id} ===`);
+
+  // Verificar todos os eventos recebidos
+  socket.onAny((event, ...args) => {
+    console.log(`\n📡 Evento recebido: ${event}`, args);
+  });
+
+  // Criar sala (versão corrigida)
+  socket.on('create-room', ({ roomName, password }) => {
+    try {
+      console.log(`\n🛠 Tentativa de criação: ${roomName}`);
+      
+      // Validação rigorosa
+      if (!roomName?.trim() || !password?.trim()) {
+        throw new Error('Nome/senha inválidos');
+      }
+
+      const roomId = roomName.toLowerCase().trim();
+      
+      if (rooms.has(roomId)) {
+        throw new Error(`Sala ${roomId} já existe!`);
+      }
+
+      // Criptografia segura
+      const hashedPass = crypto.createHash('sha256')
+        .update(password)
+        .digest('hex');
+
+      // Criar nova sala
+      const newRoom = {
+        id: roomId,
+        password: hashedPass,
+        players: new Set([socket.id]),
+        state: JSON.parse(JSON.stringify(initialState)),
+        createdAt: Date.now()
+      };
+
+      rooms.set(roomId, newRoom);
+      socket.join(roomId);
+
+      console.log(`\n✅ Sala criada: ${roomId}`);
+      console.log('🔑 Senha hash:', hashedPass);
+      
+      // Notificar sucesso
+      socket.emit('room-created', {
+        roomId,
+        players: Array.from(newRoom.players)
+      });
+
+    } catch (error) {
+      console.error(`\n❌ Erro na criação: ${error.message}`);
+      socket.emit('creation-error', {
+        code: 'CREATE_FAILED',
+        message: error.message
+      });
+    }
+  });
+
+  // Entrar na sala (versão corrigida)
+  socket.on('join-room', ({ roomName, password }) => {
+    try {
+      const roomId = roomName?.toLowerCase()?.trim();
+      console.log(`\n🔑 Tentativa de acesso: ${roomId}`);
+
+      if (!roomId) throw new Error('Nome da sala inválido');
+      
+      const room = rooms.get(roomId);
+      if (!room) throw new Error('Sala não encontrada');
+
+      // Verificar senha
+      const hashedInput = crypto.createHash('sha256')
+        .update(password?.trim() || '')
+        .digest('hex');
+
+      if (hashedInput !== room.password) {
+        throw new Error('Senha incorreta');
+      }
+
+      // Entrar na sala
+      socket.join(roomId);
+      room.players.add(socket.id);
+
+      console.log(`\n🎮 Jogador ${socket.id} entrou`);
+      console.log(`👥 Jogadores: ${Array.from(room.players).join(', ')}`);
+
+      // Atualizar todos os clientes
+      io.to(roomId).emit('state-update', room.state);
+
+    } catch (error) {
+      console.error(`\n❌ Erro de acesso: ${error.message}`);
+      socket.emit('join-error', {
+        code: 'JOIN_FAILED',
+        message: error.message
+      });
+    }
+  });
 });
 
-function cleanupRooms() {
-    const now = Date.now();
-    rooms.forEach((room, id) => {
-        if(room.players.size === 0 && (now - room.createdAt) > 3600000) {
-            rooms.delete(id);
-            console.log(`Sala ${id} removida por inatividade`);
-        }
-    });
-}
+  // Resto do código do servidor (manter igual ao anterior)
+});
+
+server.listen(PORT, () => console.log(`Servidor rodando na porta ${10000}`));
