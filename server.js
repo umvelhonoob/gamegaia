@@ -65,7 +65,7 @@ io.on('connection', (socket) => {
         console.log(`[${socket.id}] Evento: ${event}`, args);
     });
 
-    // Criar sala (versão corrigida)
+    // Criar sala
     socket.on('create-room', (data) => {
         console.log("Dados recebidos:", JSON.stringify(data, null, 2));
 
@@ -75,7 +75,7 @@ io.on('connection', (socket) => {
                 throw new Error('Formato de dados inválido');
             }
 
-            const { roomName, password } = data; // Certifique-se de usar roomName
+            const { roomName, password } = data;
 
             // Verificação tipo e conteúdo
             if (typeof roomName !== 'string' || !roomName.trim()) {
@@ -86,7 +86,7 @@ io.on('connection', (socket) => {
                 throw new Error('Senha deve ter pelo menos 4 caracteres');
             }
 
-            const roomId = roomName.toLowerCase().trim(); // Usar roomName, não name
+            const roomId = roomName.toLowerCase().trim();
 
             if (rooms.has(roomId)) {
                 throw new Error(`Sala '${roomId}' já existe`);
@@ -132,7 +132,7 @@ io.on('connection', (socket) => {
         }
     });
 
-    // Entrar na sala (versão corrigida)
+    // Entrar na sala
     socket.on('join-room', (data) => {
         console.log("Tentativa de acesso:", JSON.stringify(data, null, 2));
 
