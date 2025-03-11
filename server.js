@@ -46,32 +46,6 @@ app.use(express.static(path.join(__dirname, 'public')));
 const hashPassword = (pass) => 
     crypto.createHash('sha256').update(pass).digest('hex');
 
-// Função para validar o nome da sala
-const validateRoomName = (roomName) => {
-    if (typeof roomName !== 'string' || !roomName.trim()) {
-        throw new Error('O nome da sala deve ser um texto válido.');
-    }
-
-    // Remove espaços em branco e converte para minúsculas
-    const cleanedName = roomName.trim().toLowerCase();
-
-    // Verifica se o nome contém apenas caracteres permitidos (opcional)
-    const regex = /^[a-z0-9\-_ ]+$/i; // Apenas letras, números, hífens, underscores e espaços
-    if (!regex.test(cleanedName)) {
-        throw new Error('O nome da sala contém caracteres inválidos. Use apenas letras, números, hífens e underscores.');
-    }
-
-    return cleanedName;
-};
-
-// Função para validar a senha
-const validatePassword = (password) => {
-    if (typeof password !== 'string' || password.trim().length < 4) {
-        throw new Error('A senha deve ter pelo menos 4 caracteres.');
-    }
-    return password.trim();
-};
-
 // Monitoramento de erros de conexão
 io.engine.on("connection_error", (err) => {
     console.error("Erro de Conexão WebSocket:", {
@@ -158,92 +132,7 @@ io.on('connection', (socket) => {
         }
     });
 
-    // Entrar na sala (versão corrigida)
-    socket.on('join-room', (data) => {
-        console.log("Tentativa de acesso:", JSON.stringify(data, null, 2));
-        
-        try {
-            // Validação de dados
-            if (!data || typeof data !== 'object') {
-                throw new Error('Formato de dados inválido');
-            }
-
-            const { roomName, password } = data;
-            
-            // Verificações
-            if (typeof roomName !== 'string' || !roomName.trim()) {
-                throw new Error('Nome da sala inválido');
-            }
-
-            const roomId = roomName.toLowerCase().trim();
-            const room = rooms.get(roomId);
-
-            if (!room) {
-                throw new Error('Sala não encontrada');
-            }
-
-            if (typeof password !== 'string' || hashPassword(password) !== room.password) {
-                throw new Error('Credenciais inválidas');
-            }
-
-            socket.join(roomId);
-            room.players.add(socket.id);
-
-            console.log(`Jogador ${socket.id} entrou na sala ${roomId}`);
-            socket.emit('state-update', room.state);
-
-        } catch (error) {
-            console.error("Erro no acesso:", {
-                error: error.message,
-                stack: error.stack,
-                receivedData: data
-            });
-            
-            socket.emit('server-error', {
-                code: 'JOIN_ERROR',
-                message: error.message,
-                details: {
-                    inputRequirements: {
-                        roomName: 'string (não vazio)',
-                        password: 'string (válida)'
-                    },
-                    received: data
-                }
-            });
-        }
-    });
-
-    // Sincronização de estado
-    socket.on('state-update', (newState) => {
-        try {
-            const roomId = [...socket.rooms][1];
-            if (!roomId || !rooms.has(roomId)) return;
-
-            const room = rooms.get(roomId);
-            if (socket.id === room.manager) {
-                room.state = newState;
-                socket.to(roomId).emit('state-update', newState);
-                console.log(`Estado da sala ${roomId} atualizado`);
-            }
-        } catch (error) {
-            console.error("Erro na sincronização:", error);
-        }
-    });
-
-    // Gerenciar desconexões
-    socket.on('disconnect', () => {
-        rooms.forEach((room, roomId) => {
-            if (room.players.has(socket.id)) {
-                room.players.delete(socket.id);
-                console.log(`Jogador ${socket.id} desconectado da sala ${roomId}`);
-                
-                if (room.players.size === 0) {
-                    rooms.delete(roomId);
-                    console.log(`Sala ${roomId} removida por inatividade`);
-                }
-            }
-        });
-    });
+    // ... restante do código
 });
 
 server.listen(PORT, () => {
