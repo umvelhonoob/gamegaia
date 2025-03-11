@@ -7,14 +7,15 @@ const path = require('path');
 const app = express();
 const server = http.createServer(app);
 
-// Configuração CORS para produção e desenvolvimento
+// Configuração CORS aprimorada
 const io = new Server(server, {
   cors: {
     origin: [
       "https://gamegaia.netlify.app",
       "http://localhost:3000"
     ],
-    methods: ["GET", "POST"]
+    methods: ["GET", "POST"],
+    credentials: true
   }
 });
 
@@ -22,21 +23,37 @@ const io = new Server(server, {
 const rooms = new Map();
 
 io.on('connection', (socket) => {
-  console.log(`Novo jogador conectado: ${socket.id}`);
+  console.log(`\n=== Novo jogador conectado: ${socket.id} ===`);
+
+  // Monitorar todos os eventos
+  socket.onAny((event, ...args) => {
+    console.log(`\n📡 [${socket.id}] Evento recebido: ${event}`, args);
+  });
 
   // Criar sala
   socket.on('create-room', ({ roomName, password }) => {
     try {
-      const roomId = roomName.toLowerCase().trim();
-      console.log(`Tentativa de criar sala: ${roomId}`);
+      console.log(`\n🛠 Tentativa de criação de sala por ${socket.id}`);
+      console.log('📦 Dados recebidos:', { roomName, password });
 
-      if (rooms.has(roomId)) {
-        throw new Error('Nome da sala já está em uso!');
+      // Validação robusta
+      if (!roomName?.trim() || !password?.trim()) {
+        throw new Error('Nome da sala e senha são obrigatórios!');
       }
 
-      const hashedPassword = crypto.createHash('sha256').update(password).digest('hex');
+      const roomId = roomName.toLowerCase().trim();
       
-      rooms.set(roomId, {
+      if (rooms.has(roomId)) {
+        throw new Error(`Sala '${roomId}' já existe!`);
+      }
+
+      // Criptografia segura
+      const hashedPassword = crypto.createHash('sha256')
+        .update(password)
+        .digest('hex');
+
+      // Criar nova sala
+      const newRoom = {
         password: hashedPassword,
         players: new Set([socket.id]),
         state: {
@@ -45,55 +62,94 @@ io.on('connection', (socket) => {
           3: { balance: 1000, recursos: { combustivel: 0, combustivel_salto: 0, escudo_quantico: 0, motor_salto: 0 }},
           4: { balance: 1000, recursos: { combustivel: 0, combustivel_salto: 0, escudo_quantico: 0, motor_salto: 0 }}
         }
+      };
+
+      rooms.set(roomId, newRoom);
+      socket.join(roomId);
+
+      console.log(`\n✅ Sala criada com sucesso: ${roomId}`);
+      console.log('📊 Salas ativas:', Array.from(rooms.keys()));
+      
+      socket.emit('room-created', { 
+        roomId,
+        players: Array.from(newRoom.players)
       });
 
-      socket.join(roomId);
-      console.log(`Sala criada: ${roomId} por ${socket.id}`);
-      socket.emit('room-created', roomId);
-      
     } catch (error) {
-      console.error(`Erro ao criar sala: ${error.message}`);
-      socket.emit('creation-error', error.message);
+      console.error(`\n❌ Erro na criação da sala: ${error.message}`);
+      socket.emit('creation-error', {
+        code: 'CREATE_ROOM_FAILED',
+        message: error.message
+      });
     }
   });
 
-  // Entrar em sala (CORRIGIDO)
+  // Entrar em sala (melhorado)
   socket.on('join-room', ({ roomName, password }) => {
-    const roomId = roomName.toLowerCase().trim();
-    console.log(`Tentativa de entrar na sala: ${roomId} por ${socket.id}`);
+    try {
+      console.log(`\n🔑 Tentativa de acesso à sala por ${socket.id}`);
+      
+      const roomId = roomName?.toLowerCase()?.trim();
+      if (!roomId) throw new Error('Nome da sala inválido!');
 
-    const room = rooms.get(roomId);
-    if (!room) {
-      const error = 'Sala não encontrada!';
-      console.error(error);
-      return socket.emit('join-error', error);
+      const room = rooms.get(roomId);
+      if (!room) throw new Error(`Sala '${roomId}' não encontrada!`);
+
+      // Verificação de senha
+      const hashedInput = crypto.createHash('sha256')
+        .update(password?.trim() || '')
+        .digest('hex');
+
+      if (hashedInput !== room.password) {
+        throw new Error('Senha incorreta!');
+      }
+
+      // Adicionar jogador à sala
+      socket.join(roomId);
+      room.players.add(socket.id);
+
+      console.log(`\n🎮 Jogador ${socket.id} entrou na sala ${roomId}`);
+      console.log(`👥 Jogadores na sala: ${Array.from(room.players).join(', ')}`);
+
+      socket.emit('room-joined', {
+        roomId,
+        state: room.state,
+        players: Array.from(room.players)
+      });
+
+      io.to(roomId).emit('player-joined', {
+        playerId: socket.id,
+        players: Array.from(room.players)
+      });
+
+    } catch (error) {
+      console.error(`\n❌ Erro ao entrar na sala: ${error.message}`);
+      socket.emit('join-error', {
+        code: 'JOIN_ROOM_FAILED',
+        message: error.message
+      });
     }
+  });
 
-    const hashedPassword = crypto.createHash('sha256').update(password).digest('hex');
-    if (hashedPassword !== room.password) {
-      const error = 'Senha incorreta!';
-      console.error(error);
-      return socket.emit('join-error', error);
-    }
-
-    socket.join(roomId);
-    room.players.add(socket.id);
-    console.log(`Jogador ${socket.id} entrou na sala ${roomId}`);
-    socket.emit('room-joined', room.state);
-    io.to(roomId).emit('state-update', room.state);
-  }); // ← Correção aplicada aqui
-
-  // Desconexão
+  // Gerenciamento de desconexão
   socket.on('disconnect', () => {
-    console.log(`Jogador desconectado: ${socket.id}`);
+    console.log(`\n⚠️ Jogador desconectado: ${socket.id}`);
+    
     rooms.forEach((room, roomId) => {
       if (room.players.has(socket.id)) {
         room.players.delete(socket.id);
-        console.log(`Jogador ${socket.id} removido da sala ${roomId}`);
-        
+        console.log(`\n🗑 Jogador ${socket.id} removido da sala ${roomId}`);
+
+        // Notificar outros jogadores
+        io.to(roomId).emit('player-left', {
+          playerId: socket.id,
+          players: Array.from(room.players)
+        });
+
+        // Limpar sala vazia
         if (room.players.size === 0) {
           rooms.delete(roomId);
-          console.log(`Sala ${roomId} destruída por falta de jogadores`);
+          console.log(`\n💥 Sala ${roomId} destruída por inatividade`);
         }
       }
     });
@@ -101,4 +157,7 @@ io.on('connection', (socket) => {
 });
 
 const PORT = process.env.PORT || 10000;
-server.listen(PORT, () => console.log(`Servidor rodando na porta ${PORT}`));
+server.listen(PORT, () => {
+  console.log(`\n🚀 Servidor iniciado na porta ${PORT}`);
+  console.log(`🔒 Modo seguro: ${process.env.NODE_ENV === 'production' ? 'Ativado' : 'Desenvolvimento'}`);
+});
