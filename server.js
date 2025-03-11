@@ -85,45 +85,42 @@ io.engine.on("connection_error", (err) => {
 // Sistema de salas
 io.on('connection', (socket) => {
     console.log("Cliente conectado:", socket.id);
-    console.log("Protocolo:", socket.conn.transport.name);
 
     // Log de eventos
     socket.onAny((event, ...args) => {
         console.log(`[${socket.id}] Evento: ${event}`, args);
     });
 
-    // Atualizar transporte
-    socket.conn.on("upgrade", () => {
-        console.log(`[${socket.id}] Upgrade para: ${socket.conn.transport.name}`);
-    });
-
-    // Criar sala (versão corrigida e segura)
+    // Criar sala (versão corrigida)
     socket.on('create-room', (data) => {
         console.log("Dados recebidos:", JSON.stringify(data, null, 2));
         
         try {
-            // Validação dos dados
+            // Validação rigorosa dos dados
             if (!data || typeof data !== 'object') {
-                throw new Error('Formato de dados inválido.');
+                throw new Error('Formato de dados inválido');
             }
 
-            const { roomName, password } = data;
+            const { roomName, password } = data; // Corrigido: usar roomName, não name
+            
+            // Verificação tipo e conteúdo
+            if (typeof roomName !== 'string' || !roomName.trim()) {
+                throw new Error('Nome da sala deve ser um texto válido');
+            }
 
-            // Validação do nome da sala
-            const roomId = validateRoomName(roomName);
+            if (typeof password !== 'string' || password.trim().length < 4) {
+                throw new Error('Senha deve ter pelo menos 4 caracteres');
+            }
 
-            // Validação da senha
-            const cleanedPassword = validatePassword(password);
-
-            // Verifica se a sala já existe
+            const roomId = roomName.toLowerCase().trim(); // Corrigido: usar roomName
+            
             if (rooms.has(roomId)) {
-                throw new Error(`A sala '${roomId}' já existe. Escolha outro nome.`);
+                throw new Error(`Sala '${roomId}' já existe`);
             }
 
-            // Cria a nova sala
             const newRoom = {
                 id: roomId,
-                password: hashPassword(cleanedPassword), // Criptografa a senha
+                password: hashPassword(password),
                 state: JSON.parse(JSON.stringify(initialState)),
                 players: new Set([socket.id]),
                 manager: socket.id,
@@ -152,7 +149,7 @@ io.on('connection', (socket) => {
                 message: error.message,
                 details: {
                     inputRequirements: {
-                        roomName: 'string (não vazio, apenas letras, números, hífens e underscores)',
+                        roomName: 'string (não vazio)',
                         password: 'string (mínimo 4 caracteres)'
                     },
                     received: data
