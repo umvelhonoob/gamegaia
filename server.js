@@ -46,6 +46,32 @@ app.use(express.static(path.join(__dirname, 'public')));
 const hashPassword = (pass) => 
     crypto.createHash('sha256').update(pass).digest('hex');
 
+// Função para validar o nome da sala
+const validateRoomName = (roomName) => {
+    if (typeof roomName !== 'string' || !roomName.trim()) {
+        throw new Error('O nome da sala deve ser um texto válido.');
+    }
+
+    // Remove espaços em branco e converte para minúsculas
+    const cleanedName = roomName.trim().toLowerCase();
+
+    // Verifica se o nome contém apenas caracteres permitidos (opcional)
+    const regex = /^[a-z0-9\-_ ]+$/i; // Apenas letras, números, hífens, underscores e espaços
+    if (!regex.test(cleanedName)) {
+        throw new Error('O nome da sala contém caracteres inválidos. Use apenas letras, números, hífens e underscores.');
+    }
+
+    return cleanedName;
+};
+
+// Função para validar a senha
+const validatePassword = (password) => {
+    if (typeof password !== 'string' || password.trim().length < 4) {
+        throw new Error('A senha deve ter pelo menos 4 caracteres.');
+    }
+    return password.trim();
+};
+
 // Monitoramento de erros de conexão
 io.engine.on("connection_error", (err) => {
     console.error("Erro de Conexão WebSocket:", {
@@ -71,36 +97,33 @@ io.on('connection', (socket) => {
         console.log(`[${socket.id}] Upgrade para: ${socket.conn.transport.name}`);
     });
 
-    // Criar sala (versão corrigida)
+    // Criar sala (versão corrigida e segura)
     socket.on('create-room', (data) => {
         console.log("Dados recebidos:", JSON.stringify(data, null, 2));
         
         try {
-            // Validação rigorosa dos dados
+            // Validação dos dados
             if (!data || typeof data !== 'object') {
-                throw new Error('Formato de dados inválido');
+                throw new Error('Formato de dados inválido.');
             }
 
             const { roomName, password } = data;
-            
-            // Verificação tipo e conteúdo
-            if (typeof roomName !== 'string' || !roomName.trim()) {
-                throw new Error('Nome da sala deve ser um texto válido');
-            }
 
-            if (typeof password !== 'string' || password.trim().length < 4) {
-                throw new Error('Senha deve ter pelo menos 4 caracteres');
-            }
+            // Validação do nome da sala
+            const roomId = validateRoomName(roomName);
 
-            const roomId = roomName.toLowerCase().trim();
-            
+            // Validação da senha
+            const cleanedPassword = validatePassword(password);
+
+            // Verifica se a sala já existe
             if (rooms.has(roomId)) {
-                throw new Error(`Sala '${roomId}' já existe`);
+                throw new Error(`A sala '${roomId}' já existe. Escolha outro nome.`);
             }
 
+            // Cria a nova sala
             const newRoom = {
                 id: roomId,
-                password: hashPassword(password),
+                password: hashPassword(cleanedPassword), // Criptografa a senha
                 state: JSON.parse(JSON.stringify(initialState)),
                 players: new Set([socket.id]),
                 manager: socket.id,
@@ -129,7 +152,7 @@ io.on('connection', (socket) => {
                 message: error.message,
                 details: {
                     inputRequirements: {
-                        roomName: 'string (não vazio)',
+                        roomName: 'string (não vazio, apenas letras, números, hífens e underscores)',
                         password: 'string (mínimo 4 caracteres)'
                     },
                     received: data
