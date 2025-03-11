@@ -1,12 +1,65 @@
 {
   "name": "gamegaia",
   "version": "1.0.0",
+  "description": "Banco Galáctico - Sistema de Gerenciamento de Recursos Interplanetário",
+  "author": "Seu Nome <seu.email@example.com>",
+  "license": "GPL-3.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/seu-usuario/gamegaia.git"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  },
   "scripts": {
-    "start": "node server.js"
+    "start": "NODE_ENV=production node server.js",
+    "dev": "NODE_ENV=development nodemon server.js",
+    "test": "NODE_ENV=test jest --coverage --detectOpenHandles",
+    "lint": "eslint . --ext .js",
+    "lint:fix": "eslint . --ext .js --fix",
+    "format": "prettier --write .",
+    "prepare": "husky install",
+    "security": "npm audit --production"
   },
   "dependencies": {
     "express": "^4.18.2",
     "socket.io": "4.7.2",
-    "crypto": "latest"
+    "crypto-js": "^4.1.1",
+    "dotenv": "^16.3.1",
+    "helmet": "^7.1.0",
+    "rate-limiter-flexible": "^2.4.2"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.2",
+    "eslint": "^8.56.0",
+    "eslint-config-prettier": "^9.1.0",
+    "eslint-plugin-security": "^1.7.1",
+    "prettier": "^3.1.1",
+    "jest": "^29.7.0",
+    "supertest": "^6.3.4",
+    "husky": "^8.0.3",
+    "lint-staged": "^15.0.2"
+  },
+  "lint-staged": {
+    "*.js": [
+      "eslint --fix",
+      "prettier --write"
+    ]
+  },
+  "keywords": [
+    "game",
+    "multiplayer",
+    "socket.io",
+    "space",
+    "management",
+    "real-time"
+  ],
+  "jest": {
+    "testEnvironment": "node",
+    "coveragePathIgnorePatterns": [
+      "/node_modules/",
+      "/tests/"
+    ]
   }
 }
