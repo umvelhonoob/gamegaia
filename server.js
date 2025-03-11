@@ -221,7 +221,7 @@ io.on('connection', (socket) => {
 });
 
 // Iniciar o servidor
-server.listen(PORT, () => {
+server.listen(PORT, (10000) => {
     console.log(`Servidor rodando na porta ${PORT}`);
     console.log("Modo:", process.env.NODE_ENV || "development");
     console.log("WebSocket Config:", {
