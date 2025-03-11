@@ -57,7 +57,7 @@ io.on('connection', (socket) => {
     }
   });
 
-  // Entrar em sala
+  // Entrar em sala (CORRIGIDO)
   socket.on('join-room', ({ roomName, password }) => {
     const roomId = roomName.toLowerCase().trim();
     console.log(`Tentativa de entrar na sala: ${roomId} por ${socket.id}`);
@@ -81,12 +81,11 @@ io.on('connection', (socket) => {
     console.log(`Jogador ${socket.id} entrou na sala ${roomId}`);
     socket.emit('room-joined', room.state);
     io.to(roomId).emit('state-update', room.state);
-  }
+  }); // ← Correção aplicada aqui
 
   // Desconexão
   socket.on('disconnect', () => {
     console.log(`Jogador desconectado: ${socket.id}`);
-    // Lógica para remover jogador das salas
     rooms.forEach((room, roomId) => {
       if (room.players.has(socket.id)) {
         room.players.delete(socket.id);
