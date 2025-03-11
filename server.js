@@ -18,7 +18,7 @@ const server = http.createServer(app);
 // Configuração WebSocket aprimorada
 const io = new Server(server, {
     cors: {
-        origin: "https://gamegaia.netlify.app/",
+        origin: "https://gamegaia.netlify.app",
         methods: ["GET", "POST"],
         allowedHeaders: ["Content-Type", "Authorization"],
         credentials: true
@@ -30,7 +30,7 @@ const io = new Server(server, {
 });
 
 // Configurações
-const PORT = 10000; // Definindo a porta explicitamente como 10000
+const PORT = process.env.PORT || 10000; // Usa a porta do ambiente ou 10000 como fallback
 const rooms = new Map();
 
 // Middleware de segurança
@@ -220,9 +220,9 @@ io.on('connection', (socket) => {
     });
 });
 
-// Iniciar o servidor na porta 10000
+// Iniciar o servidor
 server.listen(PORT, (10000) => {
-    console.log(`Servidor rodando na porta ${10000}`);
+    console.log(`Servidor rodando na porta ${PORT}`);
     console.log("Modo:", process.env.NODE_ENV || "development");
     console.log("WebSocket Config:", {
         transports: io.engine.opts.transports,
