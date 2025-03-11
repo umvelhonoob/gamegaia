@@ -8,10 +8,11 @@ const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
     origin: [
-      "https://gamegaia.netlify.app",  // URL do Netlify
-      "http://localhost:3000"         // Para desenvolvimento local
+      "https://https://gamegaia.netlify.app",  // URL do Netlify
+      "http://localhost:3000"          // Para testes locais
     ],
-    methods: ["GET", "POST"]
+    methods: ["GET", "POST"],
+    credentials: true
   }
 });
 
