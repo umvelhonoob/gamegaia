@@ -6,10 +6,10 @@ const crypto = require('crypto');
 
 // Estado inicial padrão
 const initialState = {
-    1: { balance: 1000, recursos: { combustivel: 0, combustivel_salto: 0, escudo_quantico: 0, motor_salto: 0 }},
-    2: { balance: 1000, recursos: { combustivel: 0, combustivel_salto: 0, escudo_quantico: 0, motor_salto: 0 }},
-    3: { balance: 1000, recursos: { combustivel: 0, combustivel_salto: 0, escudo_quantico: 0, motor_salto: 0 }},
-    4: { balance: 1000, recursos: { combustivel: 0, combustivel_salto: 0, escudo_quantico: 0, motor_salto: 0 }}
+    1: { balance: 1000, recursos: { combustivel: 0, combustivel_salto: 0, escudo_quantico: 0, motor_salto: 0 } },
+    2: { balance: 1000, recursos: { combustivel: 0, combustivel_salto: 0, escudo_quantico: 0, motor_salto: 0 } },
+    3: { balance: 1000, recursos: { combustivel: 0, combustivel_salto: 0, escudo_quantico: 0, motor_salto: 0 } },
+    4: { balance: 1000, recursos: { combustivel: 0, combustivel_salto: 0, escudo_quantico: 0, motor_salto: 0 } }
 };
 
 const app = express();
@@ -43,7 +43,7 @@ app.use((req, res, next) => {
 app.use(express.static(path.join(__dirname, 'public')));
 
 // Funções auxiliares
-const hashPassword = (pass) => 
+const hashPassword = (pass) =>
     crypto.createHash('sha256').update(pass).digest('hex');
 
 // Monitoramento de erros de conexão
@@ -68,7 +68,7 @@ io.on('connection', (socket) => {
     // Criar sala (versão corrigida)
     socket.on('create-room', (data) => {
         console.log("Dados recebidos:", JSON.stringify(data, null, 2));
-        
+
         try {
             // Validação rigorosa dos dados
             if (!data || typeof data !== 'object') {
@@ -76,7 +76,7 @@ io.on('connection', (socket) => {
             }
 
             const { roomName, password } = data; // Certifique-se de usar roomName
-            
+
             // Verificação tipo e conteúdo
             if (typeof roomName !== 'string' || !roomName.trim()) {
                 throw new Error('Nome da sala deve ser um texto válido');
@@ -87,7 +87,7 @@ io.on('connection', (socket) => {
             }
 
             const roomId = roomName.toLowerCase().trim(); // Usar roomName, não name
-            
+
             if (rooms.has(roomId)) {
                 throw new Error(`Sala '${roomId}' já existe`);
             }
@@ -105,7 +105,7 @@ io.on('connection', (socket) => {
             socket.join(roomId);
 
             console.log(`Sala ${roomId} criada com sucesso`);
-            socket.emit('room-created', { 
+            socket.emit('room-created', {
                 status: "success",
                 roomId,
                 transport: socket.conn.transport.name
@@ -117,7 +117,7 @@ io.on('connection', (socket) => {
                 stack: error.stack,
                 receivedData: data
             });
-            
+
             socket.emit('server-error', {
                 code: 'CREATE_ERROR',
                 message: error.message,
@@ -135,7 +135,7 @@ io.on('connection', (socket) => {
     // Entrar na sala (versão corrigida)
     socket.on('join-room', (data) => {
         console.log("Tentativa de acesso:", JSON.stringify(data, null, 2));
-        
+
         try {
             // Validação de dados
             if (!data || typeof data !== 'object') {
@@ -143,7 +143,7 @@ io.on('connection', (socket) => {
             }
 
             const { roomName, password } = data;
-            
+
             // Verificações
             if (typeof roomName !== 'string' || !roomName.trim()) {
                 throw new Error('Nome da sala inválido');
@@ -172,7 +172,7 @@ io.on('connection', (socket) => {
                 stack: error.stack,
                 receivedData: data
             });
-            
+
             socket.emit('server-error', {
                 code: 'JOIN_ERROR',
                 message: error.message,
@@ -210,7 +210,7 @@ io.on('connection', (socket) => {
             if (room.players.has(socket.id)) {
                 room.players.delete(socket.id);
                 console.log(`Jogador ${socket.id} desconectado da sala ${roomId}`);
-                
+
                 if (room.players.size === 0) {
                     rooms.delete(roomId);
                     console.log(`Sala ${roomId} removida por inatividade`);
@@ -220,8 +220,8 @@ io.on('connection', (socket) => {
     });
 });
 
-server.listen(PORT, () => {
-    console.log(`Servidor rodando na porta ${PORT}`);
+server.listen(PORT, (10000) => {
+    console.log(`Servidor rodando na porta ${10000}`);
     console.log("Modo:", process.env.NODE_ENV || "development");
     console.log("WebSocket Config:", {
         transports: io.engine.opts.transports,
