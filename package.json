@@ -19,8 +19,7 @@
     "lint": "eslint . --ext .js",
     "lint:fix": "eslint . --ext .js --fix",
     "format": "prettier --write .",
-    "prepare": "husky install",
-    "security": "npm audit --production"
+     "security": "npm audit --production"
   },
   "dependencies": {
     "express": "^4.18.2",
