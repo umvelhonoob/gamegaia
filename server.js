@@ -75,7 +75,7 @@ io.on('connection', (socket) => {
                 throw new Error('Formato de dados inválido');
             }
 
-            const { roomName, password } = data; // Corrigido: usar roomName, não name
+            const { roomName, password } = data; // Certifique-se de usar roomName
             
             // Verificação tipo e conteúdo
             if (typeof roomName !== 'string' || !roomName.trim()) {
@@ -86,7 +86,7 @@ io.on('connection', (socket) => {
                 throw new Error('Senha deve ter pelo menos 4 caracteres');
             }
 
-            const roomId = roomName.toLowerCase().trim(); // Corrigido: usar roomName
+            const roomId = roomName.toLowerCase().trim(); // Usar roomName, não name
             
             if (rooms.has(roomId)) {
                 throw new Error(`Sala '${roomId}' já existe`);
@@ -132,7 +132,92 @@ io.on('connection', (socket) => {
         }
     });
 
-    // ... restante do código
+    // Entrar na sala (versão corrigida)
+    socket.on('join-room', (data) => {
+        console.log("Tentativa de acesso:", JSON.stringify(data, null, 2));
+        
+        try {
+            // Validação de dados
+            if (!data || typeof data !== 'object') {
+                throw new Error('Formato de dados inválido');
+            }
+
+            const { roomName, password } = data;
+            
+            // Verificações
+            if (typeof roomName !== 'string' || !roomName.trim()) {
+                throw new Error('Nome da sala inválido');
+            }
+
+            const roomId = roomName.toLowerCase().trim();
+            const room = rooms.get(roomId);
+
+            if (!room) {
+                throw new Error('Sala não encontrada');
+            }
+
+            if (typeof password !== 'string' || hashPassword(password) !== room.password) {
+                throw new Error('Credenciais inválidas');
+            }
+
+            socket.join(roomId);
+            room.players.add(socket.id);
+
+            console.log(`Jogador ${socket.id} entrou na sala ${roomId}`);
+            socket.emit('state-update', room.state);
+
+        } catch (error) {
+            console.error("Erro no acesso:", {
+                error: error.message,
+                stack: error.stack,
+                receivedData: data
+            });
+            
+            socket.emit('server-error', {
+                code: 'JOIN_ERROR',
+                message: error.message,
+                details: {
+                    inputRequirements: {
+                        roomName: 'string (não vazio)',
+                        password: 'string (válida)'
+                    },
+                    received: data
+                }
+            });
+        }
+    });
+
+    // Sincronização de estado
+    socket.on('state-update', (newState) => {
+        try {
+            const roomId = [...socket.rooms][1];
+            if (!roomId || !rooms.has(roomId)) return;
+
+            const room = rooms.get(roomId);
+            if (socket.id === room.manager) {
+                room.state = newState;
+                socket.to(roomId).emit('state-update', newState);
+                console.log(`Estado da sala ${roomId} atualizado`);
+            }
+        } catch (error) {
+            console.error("Erro na sincronização:", error);
+        }
+    });
+
+    // Gerenciar desconexões
+    socket.on('disconnect', () => {
+        rooms.forEach((room, roomId) => {
+            if (room.players.has(socket.id)) {
+                room.players.delete(socket.id);
+                console.log(`Jogador ${socket.id} desconectado da sala ${roomId}`);
+                
+                if (room.players.size === 0) {
+                    rooms.delete(roomId);
+                    console.log(`Sala ${roomId} removida por inatividade`);
+                }
+            }
+        });
+    });
 });
 
 server.listen(PORT, () => {
