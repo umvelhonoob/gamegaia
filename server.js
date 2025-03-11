@@ -16,7 +16,7 @@ const io = new Server(server, {
 });
 
 // Configurações
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 10000;
 const rooms = new Map();
 
 app.use(express.static(path.join(__dirname, 'public')));
