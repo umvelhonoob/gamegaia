@@ -18,7 +18,7 @@ const server = http.createServer(app);
 // Configuração WebSocket aprimorada
 const io = new Server(server, {
     cors: {
-        origin: "*",
+        origin: "https://gamegaia.netlify.app",
         methods: ["GET", "POST"],
         allowedHeaders: ["Content-Type", "Authorization"],
         credentials: true
