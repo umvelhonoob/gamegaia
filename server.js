@@ -81,7 +81,7 @@ io.on('connection', (socket) => {
     console.log(`Jogador ${socket.id} entrou na sala ${roomId}`);
     socket.emit('room-joined', room.state);
     io.to(roomId).emit('state-update', room.state);
-  });
+  }
 
   // Desconexão
   socket.on('disconnect', () => {
