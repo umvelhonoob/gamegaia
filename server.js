@@ -55,4 +55,4 @@ io.on('connection', (socket) => {
   // Resto do código do servidor (manter igual ao anterior)
 });
 
-server.listen(PORT, () => console.log(`Servidor rodando na porta ${3000}`));
+server.listen(PORT, () => console.log(`Servidor rodando na porta ${10000}`));
