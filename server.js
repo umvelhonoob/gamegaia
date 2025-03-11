@@ -2,7 +2,11 @@ const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
 const path = require('path');
-
+const crypto = require('crypto');
+const initialState = {
+  1: { balance: 1000, recursos: { combustivel: 0, combustivel_salto: 0, escudo_quantico: 0, motor_salto: 0 }},
+  // ... (mesmo padrão para os jogadores 2, 3 e 4)
+};
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
