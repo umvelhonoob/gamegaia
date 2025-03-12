@@ -1,12 +1,10 @@
-from flask import Flask, request, jsonify
-from flask_socketio import SocketIO, emit, join_room, leave_room
+from flask import Flask, request, jsonify, render_template
 from datetime import datetime
 import hashlib
 import json
 
-# Configuração do Flask e Flask-SocketIO
+# Configuração do Flask
 app = Flask(__name__)
-socketio = SocketIO(app, cors_allowed_origins="https://gamegaia.netlify.app")
 
 # Estado inicial padrão
 initial_state = {
@@ -23,27 +21,21 @@ rooms = {}
 def hash_password(password):
     return hashlib.sha256(password.encode()).hexdigest()
 
-# Evento de conexão do Socket.IO
-@socketio.on('connect')
-def handle_connect():
-    print(f"Cliente conectado: {request.sid}")
+# Rota de teste
+@app.route('/test', methods=['GET'])
+def test():
+    return jsonify({"message": "Servidor funcionando!"})
 
-# Evento de desconexão do Socket.IO
-@socketio.on('disconnect')
-def handle_disconnect():
-    print(f"Cliente desconectado: {request.sid}")
-    for room_id, room in list(rooms.items()):
-        if request.sid in room["players"]:
-            room["players"].remove(request.sid)
-            if len(room["players"]) == 0:
-                del rooms[room_id]
-                print(f"Sala {room_id} removida por inatividade")
+    # Rota de teste
+@app.route('/', methods=['GET'])
+def test():
+    return render_template ('Index.html')
 
-# Evento para criar uma sala
-@socketio.on('create-room')
-def handle_create_room(data):
+# Rota para criar uma sala
+@app.route('/create-room', methods=['POST'])
+def create_room():
     try:
-        # Validação dos dados
+        data = request.get_json()
         if not data or not isinstance(data, dict):
             raise ValueError("Formato de dados inválido")
 
@@ -66,22 +58,19 @@ def handle_create_room(data):
             "id": room_id,
             "password": hash_password(password),
             "state": json.loads(json.dumps(initial_state)),  # Deep copy do estado inicial
-            "players": set([request.sid]),
-            "manager": request.sid,
+            "players": set(),
+            "manager": None,
             "createdAt": datetime.now().isoformat()
         }
 
-        join_room(room_id)
-        print(f"Sala {room_id} criada com sucesso")
-        emit("room-created", {
+        return jsonify({
             "status": "success",
             "roomId": room_id,
-            "transport": "websocket"  # Simulação do transporte
+            "message": f"Sala {room_id} criada com sucesso"
         })
 
     except Exception as error:
-        print(f"Erro na criação da sala: {str(error)}")
-        emit("server-error", {
+        return jsonify({
             "code": "CREATE_ERROR",
             "message": str(error),
             "details": {
@@ -91,13 +80,13 @@ def handle_create_room(data):
                 },
                 "received": data
             }
-        })
+        }), 400
 
-# Evento para entrar em uma sala
-@socketio.on('join-room')
-def handle_join_room(data):
+# Rota para entrar em uma sala
+@app.route('/join-room', methods=['POST'])
+def join_room():
     try:
-        # Validação dos dados
+        data = request.get_json()
         if not data or not isinstance(data, dict):
             raise ValueError("Formato de dados inválido")
 
@@ -116,15 +105,18 @@ def handle_join_room(data):
         if not password or not isinstance(password, str) or hash_password(password) != room["password"]:
             raise ValueError("Credenciais inválidas")
 
-        join_room(room_id)
-        room["players"].add(request.sid)
+        # Adiciona o jogador à sala (simulação)
+        room["players"].add("player_id")  # Substitua por um ID real do jogador
 
-        print(f"Jogador {request.sid} entrou na sala {room_id}")
-        emit("state-update", room["state"])
+        return jsonify({
+            "status": "success",
+            "roomId": room_id,
+            "state": room["state"],
+            "message": f"Jogador entrou na sala {room_id}"
+        })
 
     except Exception as error:
-        print(f"Erro no acesso: {str(error)}")
-        emit("server-error", {
+        return jsonify({
             "code": "JOIN_ERROR",
             "message": str(error),
             "details": {
@@ -134,25 +126,8 @@ def handle_join_room(data):
                 },
                 "received": data
             }
-        })
-
-# Evento para atualizar o estado da sala
-@socketio.on('state-update')
-def handle_state_update(new_state):
-    try:
-        room_id = list(request.sid_rooms)[1]  # Obtém a sala atual do cliente
-        if not room_id or room_id not in rooms:
-            return
-
-        room = rooms[room_id]
-        if request.sid == room["manager"]:
-            room["state"] = new_state
-            emit("state-update", new_state, to=room_id)
-            print(f"Estado da sala {room_id} atualizado")
-
-    except Exception as error:
-        print(f"Erro na sincronização: {str(error)}")
+        }), 400
 
 # Iniciar o servidor
 if __name__ == '__main__':
-    socketio.run(app, host='0.0.0.0', port=10000)
+    app.run(host='0.0.0.0', port=10000)
