@@ -110,7 +110,7 @@ def join_room():
 
         # Adiciona o jogador à sala (simulação)
         room["players"].add("player_id")  # Substitua por um ID real do jogador
-
+        print(f'Salas : {rooms}')
         return jsonify({
             "status": "success",
             "roomId": room_id,
