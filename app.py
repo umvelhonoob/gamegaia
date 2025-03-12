@@ -57,7 +57,7 @@ def get_state():
     room_name = session.get("room")
 
     if not room_name or room_name not in rooms:
-        return jsonify({"error": "Sala não encontrada!"}), 404
+        return jsonify({"error": "Sala não encontrada!"}), 300
 
     return jsonify(rooms[room_name]["state"])
 
