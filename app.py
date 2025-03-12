@@ -31,7 +31,7 @@ def test():
     # Rota de teste
 @app.route('/')
 def Index():
-    return render_template ('Index.html')
+    return render_template ('index.html')
 
 # Rota para criar uma sala
 @app.route('/create-room', methods=['POST'])
