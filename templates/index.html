@@ -492,6 +492,8 @@
                 if (response.error) return alert(response.error);
 
                 let balancesHTML = "";
+                let resourcesHTML = "";
+
                 for (let player in response.players) {
                     balancesHTML += `
                 <div class="player-balance">
@@ -499,22 +501,60 @@
                     <div>Saldo: ${response.players[player].balance} Racunes</div>
                 </div>
             `;
+
+                    resourcesHTML += `
+                <div class="resource-item">
+                    <h3>Jogador ${player}</h3>
+                    ${Object.entries(response.players[player].recursos).map(([recurso, valor]) => `
+                        <div>
+                            <span>${recurso.toUpperCase()}: ${valor}</span>
+                            <input type="number" id="input-${player}-${recurso}">
+                            <button onclick="updateResource(${player}, '${recurso}', true)">+</button>
+                            <button onclick="updateResource(${player}, '${recurso}', false)">-</button>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
                 }
 
                 document.getElementById("balances").innerHTML = balancesHTML;
+                document.getElementById("resources").innerHTML = resourcesHTML;
             }
 
             async function updateBalance(player, amount) {
-                await fetchJSON("/update_balance", {
+                const response = await fetchJSON("/update_balance", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({ player, amount })
                 });
+
+                if (response.error) return alert(response.error);
+                updateBalances();
+            }
+
+            async function updateResource(player, resource, add) {
+                const input = document.getElementById(`input-${player}-${resource}`);
+                const amount = parseInt(input.value) || 0;
+
+                if (!add) amount *= -1;
+
+                const response = await fetchJSON("/update_resource", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ player, resource, amount })
+                });
+
+                if (response.error) return alert(response.error);
                 updateBalances();
             }
 
             async function resetGame() {
-                await fetchJSON("/reset_game", { method: "POST" });
+                if (!isManager) return alert("Apenas o gerente pode resetar!");
+
+                const response = await fetchJSON("/reset_game", { method: "POST" });
+
+                if (response.error) return alert(response.error);
+                alert("Jogo reiniciado!");
                 updateBalances();
             }
 
