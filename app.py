@@ -31,7 +31,7 @@ def test():
     # Rota de teste
 @app.route('/')
 def Index():
-    print(rooms)
+    print(f'Salas : {rooms}')
     return render_template ('index.html')
 
 # Rota para criar uma sala
@@ -65,7 +65,7 @@ def create_room():
             "manager": None,
             "createdAt": datetime.now().isoformat()
         }
-
+        print(f'Salas : {rooms}')
         return jsonify({
             "status": "success",
             "roomId": room_id,
