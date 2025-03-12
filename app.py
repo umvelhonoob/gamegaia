@@ -29,8 +29,8 @@ def test():
     return jsonify({"message": "Servidor funcionando!"})
 
     # Rota de teste
-@app.route('/', methods=['GET'])
-def test():
+@app.route('/')
+def Index():
     return render_template ('Index.html')
 
 # Rota para criar uma sala
