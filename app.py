@@ -6,6 +6,8 @@ import json
 # Configuração do Flask
 app = Flask(__name__)
 
+app.secret_key='Teste'
+
 # Estado inicial padrão
 initial_state = {
     "1": {"balance": 1000, "recursos": {"combustivel": 0, "combustivel_salto": 0, "escudo_quantico": 0, "motor_salto": 0}},
@@ -130,4 +132,4 @@ def join_room():
 
 # Iniciar o servidor
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=10000)
+    app.run(debug=true)
