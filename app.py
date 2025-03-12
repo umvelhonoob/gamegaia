@@ -1,138 +1,145 @@
-from flask import Flask, request, jsonify, render_template
-from datetime import datetime
-import hashlib
+from flask import Flask, request, jsonify, render_template, session
+from flask_sqlalchemy import SQLAlchemy
 import json
 
-# Configuração do Flask
 app = Flask(__name__)
+app.secret_key = "SUA_SECRET_KEY_AQUI"
 
-app.secret_key='Teste'
+# Configuração do banco de dados SQLite
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///game.db'
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+db = SQLAlchemy(app)
 
-# Estado inicial padrão
+
+# Modelo para salas no banco de dados
+class Room(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(50), unique=True, nullable=False)
+    password = db.Column(db.String(50), nullable=False)
+    state = db.Column(db.Text, nullable=False)  # Armazena JSON como string
+
+
+# Estado inicial do jogo
 initial_state = {
-    "1": {"balance": 1000, "recursos": {"combustivel": 0, "combustivel_salto": 0, "escudo_quantico": 0, "motor_salto": 0}},
-    "2": {"balance": 1000, "recursos": {"combustivel": 0, "combustivel_salto": 0, "escudo_quantico": 0, "motor_salto": 0}},
-    "3": {"balance": 1000, "recursos": {"combustivel": 0, "combustivel_salto": 0, "escudo_quantico": 0, "motor_salto": 0}},
-    "4": {"balance": 1000, "recursos": {"combustivel": 0, "combustivel_salto": 0, "escudo_quantico": 0, "motor_salto": 0}}
+    "players": {
+        "1": {"balance": 1000, "recursos": {"combustivel": 0, "combustivel_salto": 0, "escudo_quantico": 0, "motor_salto": 0}},
+        "2": {"balance": 1000, "recursos": {"combustivel": 0, "combustivel_salto": 0, "escudo_quantico": 0, "motor_salto": 0}},
+        "3": {"balance": 1000, "recursos": {"combustivel": 0, "combustivel_salto": 0, "escudo_quantico": 0, "motor_salto": 0}},
+        "4": {"balance": 1000, "recursos": {"combustivel": 0, "combustivel_salto": 0, "escudo_quantico": 0, "motor_salto": 0}}
+    }
 }
 
-# Dicionário para armazenar as salas
-rooms = {}
 
-# Função para hashear a senha
-def hash_password(password):
-    return hashlib.sha256(password.encode()).hexdigest()
+@app.before_request
+def create_tables():
+    """Garante que as tabelas sejam criadas antes da primeira requisição"""
+    db.create_all()
 
-# Rota de teste
-@app.route('/test', methods=['GET'])
-def test():
-    return jsonify({"message": "Servidor funcionando!"})
 
-    # Rota de teste
-@app.route('/')
-def Index():
-    print(f'Salas : {rooms}')
-    return render_template ('index.html')
+@app.route("/")
+def index():
+    return render_template("index.html")
 
-# Rota para criar uma sala
-@app.route('/create-room', methods=['POST'])
+
+@app.route("/create_room", methods=["POST"])
 def create_room():
-    try:
-        data = request.get_json()
-        if not data or not isinstance(data, dict):
-            raise ValueError("Formato de dados inválido")
+    data = request.json
+    room_name = data.get("roomName")
+    password = data.get("password")
 
-        room_name = data.get("roomName")
-        password = data.get("password")
+    if Room.query.filter_by(name=room_name).first():
+        return jsonify({"error": "Sala já existe!"}), 400
 
-        if not room_name or not isinstance(room_name, str) or not room_name.strip():
-            raise ValueError("Nome da sala deve ser um texto válido")
+    new_room = Room(name=room_name, password=password, state=json.dumps(initial_state))
+    db.session.add(new_room)
+    db.session.commit()
 
-        if not password or not isinstance(password, str) or len(password.strip()) < 4:
-            raise ValueError("Senha deve ter pelo menos 4 caracteres")
+    return jsonify({"message": "Sala criada com sucesso!", "roomName": room_name})
 
-        room_id = room_name.lower().strip()
 
-        if room_id in rooms:
-            raise ValueError(f"Sala '{room_id}' já existe")
-
-        # Cria uma nova sala
-        rooms[room_id] = {
-            "id": room_id,
-            "password": hash_password(password),
-            "state": json.loads(json.dumps(initial_state)),  # Deep copy do estado inicial
-            "players": set(),
-            "manager": None,
-            "createdAt": datetime.now().isoformat()
-        }
-        print(f'Salas : {rooms}')
-        return jsonify({
-            "status": "success",
-            "roomId": room_id,
-            "message": f"Sala {room_id} criada com sucesso",
-            "salas":rooms
-        })
-
-    except Exception as error:
-        return jsonify({
-            "code": "CREATE_ERROR",
-            "message": str(error),
-            "details": {
-                "inputRequirements": {
-                    "roomName": "string (não vazio)",
-                    "password": "string (mínimo 4 caracteres)"
-                },
-                "received": data
-            }
-        }), 400
-
-# Rota para entrar em uma sala
-@app.route('/join-room', methods=['POST'])
+@app.route("/join_room", methods=["POST"])
 def join_room():
-    try:
-        data = request.get_json()
-        if not data or not isinstance(data, dict):
-            raise ValueError("Formato de dados inválido")
+    data = request.json
+    room_name = data.get("roomName")
+    password = data.get("password")
+    role = data.get("role")
 
-        room_name = data.get("roomName")
-        password = data.get("password")
+    room = Room.query.filter_by(name=room_name).first()
+    if not room:
+        return jsonify({"error": "Sala não encontrada!"}), 404
 
-        if not room_name or not isinstance(room_name, str) or not room_name.strip():
-            raise ValueError("Nome da sala inválido")
+    if role == "player" and room.password != password:
+        return jsonify({"error": "Senha incorreta!"}), 403
 
-        room_id = room_name.lower().strip()
-        room = rooms.get(room_id)
+    session["room"] = room_name
+    return jsonify({"message": "Entrou na sala!", "roomName": room_name})
 
-        if not room:
-            raise ValueError("Sala não encontrada")
 
-        if not password or not isinstance(password, str) or hash_password(password) != room["password"]:
-            raise ValueError("Credenciais inválidas")
+@app.route("/get_state", methods=["GET"])
+def get_state():
+    room_name = session.get("room")
+    if not room_name:
+        return jsonify({"error": "Nenhuma sala selecionada!"}), 404
 
-        # Adiciona o jogador à sala (simulação)
-        room["players"].add("player_id")  # Substitua por um ID real do jogador
-        print(f'Salas : {rooms}')
-        return jsonify({
-            "status": "success",
-            "roomId": room_id,
-            "state": room["state"],
-            "message": f"Jogador entrou na sala {room_id}",
-            "salas":rooms
-        })
+    room = Room.query.filter_by(name=room_name).first()
+    if not room:
+        return jsonify({"error": "Sala não encontrada!"}), 404
 
-    except Exception as error:
-        return jsonify({
-            "code": "JOIN_ERROR",
-            "message": str(error),
-            "details": {
-                "inputRequirements": {
-                    "roomName": "string (não vazio)",
-                    "password": "string (válida)"
-                },
-                "received": data
-            }
-        }), 400
+    return jsonify(json.loads(room.state))
 
-# Iniciar o servidor
-if __name__ == '__main__':
-    app.run(debug=true)
+
+@app.route("/update_balance", methods=["POST"])
+def update_balance():
+    data = request.json
+    room_name = session.get("room")
+    player = str(data.get("player"))
+    amount = int(data.get("amount"))
+
+    room = Room.query.filter_by(name=room_name).first()
+    if not room:
+        return jsonify({"error": "Sala não encontrada!"}), 404
+
+    state = json.loads(room.state)
+    state["players"][player]["balance"] += amount
+    room.state = json.dumps(state)
+    db.session.commit()
+
+    return jsonify({"message": "Saldo atualizado!", "new_balance": state["players"][player]["balance"]})
+
+
+@app.route("/update_resource", methods=["POST"])
+def update_resource():
+    data = request.json
+    room_name = session.get("room")
+    player = str(data.get("player"))
+    resource = data.get("resource")
+    amount = int(data.get("amount"))
+
+    room = Room.query.filter_by(name=room_name).first()
+    if not room:
+        return jsonify({"error": "Sala não encontrada!"}), 404
+
+    state = json.loads(room.state)
+    state["players"][player]["recursos"][resource] += amount
+    room.state = json.dumps(state)
+    db.session.commit()
+
+    return jsonify({"message": "Recurso atualizado!"})
+
+
+@app.route("/reset_game", methods=["POST"])
+def reset_game():
+    room_name = session.get("room")
+
+    room = Room.query.filter_by(name=room_name).first()
+    if not room:
+        return jsonify({"error": "Sala não encontrada!"}), 404
+
+    room.state = json.dumps(initial_state)
+    db.session.commit()
+
+    return jsonify({"message": "Jogo reiniciado!"})
+
+
+if __name__ == "__main__":
+    app.run(debug=True)

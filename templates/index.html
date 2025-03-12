@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="pt-br">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,7 +8,8 @@
     <div id="dov">
         <img height="250" width="1200" src="https://github.com/umvelhonoob/imgs/blob/main/logogaia1.jpg?raw=true">
     </div>
-    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Space+Mono&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Space+Mono&display=swap"
+        rel="stylesheet">
     <style>
         #dov {
             display: flex;
@@ -32,7 +34,8 @@
             pointer-events: none;
         }
 
-        h1, h2 {
+        h1,
+        h2 {
             font-family: 'Orbitron', sans-serif;
             text-align: center;
             text-shadow: 0 0 10px #00f3ff;
@@ -68,7 +71,9 @@
             border: 1px solid #00f3ff;
         }
 
-        input, select, button {
+        input,
+        select,
+        button {
             background: rgba(25, 28, 15, 0.5);
             color: #00f3ff;
             border: 1px solid #00f3ff;
@@ -83,10 +88,10 @@
             transition: all 0.3s;
         }
 
-            button:hover {
-                background: #191c19;
-                box-shadow: 0 0 10px #00f3ff;
-            }
+        button:hover {
+            background: #191c19;
+            box-shadow: 0 0 10px #00f3ff;
+        }
 
         .manager-access {
             position: fixed;
@@ -204,9 +209,9 @@
             color: #00f3ff;
         }
 
-            .form-toggle:hover {
-                text-decoration: underline;
-            }
+        .form-toggle:hover {
+            text-decoration: underline;
+        }
 
         .hidden {
             display: none;
@@ -259,12 +264,14 @@
                 flex-direction: column;
             }
 
-                .manager-access button {
-                    width: 100%;
-                    margin: 5px 0;
-                }
+            .manager-access button {
+                width: 100%;
+                margin: 5px 0;
+            }
 
-            input, select, button {
+            input,
+            select,
+            button {
                 width: 100%;
                 margin: 5px 0;
             }
@@ -300,7 +307,8 @@
             gap: 10px;
         }
 
-        select, input {
+        select,
+        input {
             width: 100%;
             box-sizing: border-box;
         }
@@ -439,247 +447,81 @@
         const socket = io("https://gamegaia.onrender.com");
     </script>
     <script>
-        const initialState = {
-            1: { balance: 1000, recursos: { combustivel: 0, combustivel_salto: 0, escudo_quantico: 0, motor_salto: 0 } },
-            2: { balance: 1000, recursos: { combustivel: 0, combustivel_salto: 0, escudo_quantico: 0, motor_salto: 0 } },
-            3: { balance: 1000, recursos: { combustivel: 0, combustivel_salto: 0, escudo_quantico: 0, motor_salto: 0 } },
-            4: { balance: 1000, recursos: { combustivel: 0, combustivel_salto: 0, escudo_quantico: 0, motor_salto: 0 } }
-        };
+        document.addEventListener("DOMContentLoaded", function () {
+            let isManager = false;
 
-        let players = JSON.parse(JSON.stringify(initialState));
-        let isManager = false;
+            async function fetchJSON(url, options = {}) {
+                const response = await fetch(url, options);
+                return response.json();
+            }
 
-        function toggleForms() {
-            document.getElementById('createForm').classList.toggle('hidden');
-            document.getElementById('joinForm').classList.toggle('hidden');
-        }
+            async function createRoom() {
+                const roomName = document.getElementById('roomName').value;
+                const password = document.getElementById('roomPassword').value;
 
-        function createRoom() {
-            const roomName = document.getElementById('roomName').value;
-            const password = document.getElementById('roomPassword').value;
+                if (!roomName || !password) return alert("Preencha todos os campos!");
 
-            if (!roomName || !password) return alert('Preencha todos os campos!');
+                const response = await fetchJSON("/create_room", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ roomName, password })
+                });
 
-            const roomData = {
-                name: roomName,
-                password: password,
-                state: JSON.stringify(initialState),
-                players: []
-            };
+                if (response.error) return alert(response.error);
+                enterGame("manager");
+            }
 
-            localStorage.setItem(`room_${roomName}`, JSON.stringify(roomData));
-            localStorage.setItem('currentRoom', roomName);
-            enterGame('manager');
-        }
+            async function joinRoom() {
+                const roomName = document.getElementById('joinRoomName').value;
+                const password = document.getElementById('joinRoomPassword').value;
+                const role = document.getElementById('accessType').value;
 
-        function joinRoom() {
-            const roomName = document.getElementById('joinRoomName').value;
-            const password = document.getElementById('joinRoomPassword').value;
-            const accessType = document.getElementById('accessType').value;
+                const response = await fetchJSON("/join_room", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ roomName, password, role })
+                });
 
-            const roomData = JSON.parse(localStorage.getItem(`room_${roomName}`));
+                if (response.error) return alert(response.error);
+                enterGame(role);
+            }
 
-            if (!roomData) return alert('Sala não encontrada!');
-            if (accessType === 'player' && roomData.password !== password) return alert('Senha incorreta!');
+            async function updateBalances() {
+                const response = await fetchJSON("/get_state");
 
-            localStorage.setItem('currentRoom', roomName);
-            loadRoomState(roomName);
-            enterGame(accessType);
-        }
+                if (response.error) return alert(response.error);
 
-        function loadRoomState(roomName) {
-            const roomData = JSON.parse(localStorage.getItem(`room_${roomName}`));
-            if (roomData) {
-                players = JSON.parse(roomData.state);
+                let balancesHTML = "";
+                for (let player in response.players) {
+                    balancesHTML += `
+                <div class="player-balance">
+                    <h3>Jogador ${player}</h3>
+                    <div>Saldo: ${response.players[player].balance} Racunes</div>
+                </div>
+            `;
+                }
+
+                document.getElementById("balances").innerHTML = balancesHTML;
+            }
+
+            async function updateBalance(player, amount) {
+                await fetchJSON("/update_balance", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ player, amount })
+                });
                 updateBalances();
             }
-        }
 
-        function enterGame(role) {
-            document.getElementById('loginScreen').style.display = 'none';
-            document.getElementById('gameContainer').style.display = 'block';
-
-            document.querySelectorAll('button').forEach(btn => btn.disabled = false);
-
-            if (role === 'observer') {
-                document.querySelectorAll('#gameContainer button:not([onclick="sairDaSala()"])').forEach(btn => btn.disabled = true);
-                alert('Modo observador: apenas visualização');
+            async function resetGame() {
+                await fetchJSON("/reset_game", { method: "POST" });
+                updateBalances();
             }
-        }
 
-        function sairDaSala() {
-            if (confirm('Deseja realmente sair desta sala?\nTodo o progresso não salvo será perdido!')) {
-                localStorage.removeItem('currentRoom');
-                window.location.reload();
-            }
-        }
-
-        window.addEventListener('beforeunload', function (e) {
-            const currentRoom = localStorage.getItem('currentRoom');
-            if (currentRoom) {
-                const roomData = JSON.parse(localStorage.getItem(`room_${currentRoom}`));
-                roomData.state = JSON.stringify(players);
-                localStorage.setItem(`room_${currentRoom}`, JSON.stringify(roomData));
-            }
+            updateBalances();
         });
 
-        (function checkRestore() {
-            const currentRoom = localStorage.getItem('currentRoom');
-            if (currentRoom) {
-                loadRoomState(currentRoom);
-                enterGame('player');
-            }
-        })();
-
-        function reiniciarJogo() {
-            if (!isManager) return alert('Acesso restrito ao gerente!');
-            if (confirm('Tem certeza que deseja reiniciar TODOS os valores?\nEsta ação não pode ser desfeita!')) {
-                players = JSON.parse(JSON.stringify(initialState));
-                localStorage.setItem('currentState', JSON.stringify(players));
-                updateBalances();
-                alert('Sistema reiniciado com sucesso!');
-            }
-        }
-
-        function updateBalances() {
-            const balancesDiv = document.getElementById('balances');
-            const resourcesDiv = document.getElementById('resources');
-            let balancesHTML = '';
-            let resourcesHTML = '';
-
-            for (let player in players) {
-                balancesHTML += `
-                            <div class="player-balance">
-                                <h3>Jogador ${player}</h3>
-                                <div>Saldo: ${players[player].balance} Racunes</div>
-                            </div>
-                        `;
-
-                resourcesHTML += `
-                            <div class="resource-item">
-                                <h3 class="resource-title">Jogador ${player}</h3>
-                                ${Object.entries(players[player].recursos).map(([recurso, valor]) => `
-                                    <div class="resource-control">
-                                        <span>${recurso.replace(/_/g, ' ').toUpperCase()}: ${valor}</span>
-                                        <input type="number" id="input-${player}-${recurso}" placeholder="Quantidade">
-                                        <div class="resource-buttons">
-                                            <button onclick="adicionarRecurso(${player}, '${recurso}')">+</button>
-                                            <button onclick="removerRecurso(${player}, '${recurso}')">-</button>
-                                        </div>
-                                    </div>
-                                `).join('')}
-                            </div>
-                        `;
-            }
-
-            balancesDiv.innerHTML = balancesHTML;
-            resourcesDiv.innerHTML = resourcesHTML;
-        }
-
-        function adicionarRecurso(jogador, recurso) {
-            if (!isManager) return alert('Acesso restrito ao gerente!');
-            const input = document.getElementById(`input-${jogador}-${recurso}`);
-            const valor = parseInt(input.value) || 0;
-            players[jogador].recursos[recurso] += valor;
-            updateBalances();
-        }
-
-        function removerRecurso(jogador, recurso) {
-            if (!isManager) return alert('Acesso restrito ao gerente!');
-            const input = document.getElementById(`input-${jogador}-${recurso}`);
-            const valor = parseInt(input.value) || 0;
-            if (players[jogador].recursos[recurso] >= valor) {
-                players[jogador].recursos[recurso] -= valor;
-            } else {
-                alert('Quantidade insuficiente!');
-            }
-            updateBalances();
-        }
-
-        function loginManager() {
-            const password = prompt('Digite a senha do gerente:');
-            if (password === 'admin123') {
-                isManager = true;
-                alert('Acesso concedido!');
-            } else {
-                alert('Acesso negado!');
-            }
-        }
-
-        function transferir() {
-            if (!isManager) return alert('Acesso restrito ao gerente!');
-
-            const from = document.getElementById('fromPlayer').value;
-            const to = document.getElementById('toPlayer').value;
-            const amount = parseInt(document.getElementById('transferAmount').value);
-
-            if (from === to) return alert('Não pode transferir para si mesmo!');
-            if (players[from].balance < amount) return alert('Saldo insuficiente!');
-
-            players[from].balance -= amount;
-            players[to].balance = Number(players[to].balance) + amount;
-            updateBalances();
-        }
-
-        function depositar() {
-            if (!isManager) return alert('Acesso restrito ao gerente!');
-
-            const player = document.getElementById('player').value;
-            const amount = parseInt(document.getElementById('amount').value);
-
-            players[player].balance += amount;
-            updateBalances();
-        }
-
-        function retirar() {
-            if (!isManager) return alert('Acesso restrito ao gerente!');
-
-            const player = document.getElementById('player').value;
-            const amount = parseInt(document.getElementById('amount').value);
-
-            if (players[player].balance < amount) return alert('Saldo insuficiente!');
-            players[player].balance -= amount;
-            updateBalances();
-        }
-
-        let calcInput = document.getElementById('calcInput');
-
-        function addToCalc(value) {
-            calcInput.value += value;
-        }
-
-        function calculate() {
-            try {
-                calcInput.value = eval(calcInput.value);
-            } catch {
-                alert('Erro no cálculo!');
-                calcInput.value = '';
-            }
-        }
-
-        function clearCalc() {
-            calcInput.value = '';
-        }
-
-        function createStars() {
-            const stars = document.querySelector('.stars');
-            for (let i = 0; i < 200; i++) {
-                const star = document.createElement('div');
-                star.style.position = 'absolute';
-                star.style.left = Math.random() * 100 + '%';
-                star.style.top = Math.random() * 100 + '%';
-                star.style.width = Math.random() * 3 + 'px';
-                star.style.height = star.style.width;
-                star.style.backgroundColor = 'white';
-                star.style.borderRadius = '50%';
-                star.style.opacity = Math.random();
-                star.style.animation = `twinkle ${Math.random() * 3 + 2}s infinite`;
-                stars.appendChild(star);
-            }
-        }
-
-        updateBalances();
-        createStars();
     </script>
 </body>
+
 </html>
