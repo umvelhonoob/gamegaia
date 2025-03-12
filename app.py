@@ -69,7 +69,8 @@ def create_room():
         return jsonify({
             "status": "success",
             "roomId": room_id,
-            "message": f"Sala {room_id} criada com sucesso"
+            "message": f"Sala {room_id} criada com sucesso",
+            "salas":rooms
         })
 
     except Exception as error:
@@ -115,7 +116,8 @@ def join_room():
             "status": "success",
             "roomId": room_id,
             "state": room["state"],
-            "message": f"Jogador entrou na sala {room_id}"
+            "message": f"Jogador entrou na sala {room_id}",
+            "salas":rooms
         })
 
     except Exception as error:
