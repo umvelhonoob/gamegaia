@@ -10,321 +10,6 @@
     </div>
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Space+Mono&display=swap"
         rel="stylesheet">
-    <style>
-        #dov {
-            display: flex;
-            justify-content: center;
-        }
-
-        body {
-            margin: 0;
-            padding: 20px;
-            background: linear-gradient(45deg, #191c19, #004267);
-            color: #00f3ff;
-            font-family: 'Space Mono', monospace;
-            min-height: 100vh;
-            position: relative;
-            overflow-x: hidden;
-        }
-
-        .stars {
-            position: fixed;
-            width: 100%;
-            height: 100%;
-            pointer-events: none;
-        }
-
-        h1,
-        h2 {
-            font-family: 'Orbitron', sans-serif;
-            text-align: center;
-            text-shadow: 0 0 10px #00f3ff;
-        }
-
-        .container {
-            max-width: 800px;
-            margin: 0 auto;
-            position: relative;
-            z-index: 1;
-        }
-
-        .player-balance {
-            background: rgba(25, 28, 15, 0.5);
-            padding: 15px;
-            margin: 10px;
-            border-radius: 10px;
-            border: 1px solid #00f3ff;
-            box-shadow: 0 0 15px #00f3ff;
-        }
-
-        .bank-controls {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 20px;
-            margin-top: 30px;
-        }
-
-        .control-panel {
-            background: rgba(25, 28, 15, 0.5);
-            padding: 20px;
-            border-radius: 15px;
-            border: 1px solid #00f3ff;
-        }
-
-        input,
-        select,
-        button {
-            background: rgba(25, 28, 15, 0.5);
-            color: #00f3ff;
-            border: 1px solid #00f3ff;
-            padding: 8px;
-            margin: 5px;
-            border-radius: 5px;
-            font-family: 'Space Mono', monospace;
-        }
-
-        button {
-            cursor: pointer;
-            transition: all 0.3s;
-        }
-
-        button:hover {
-            background: #191c19;
-            box-shadow: 0 0 10px #00f3ff;
-        }
-
-        .manager-access {
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            display: flex;
-            gap: 10px;
-        }
-
-        .resource-panel {
-            margin-top: 20px;
-            background: rgba(25, 28, 15, 0.5);
-            padding: 15px;
-            border-radius: 10px;
-        }
-
-        .resource-title {
-            color: #00ff88;
-            margin: 10px 0;
-        }
-
-        .resource-control {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            margin: 5px 0;
-        }
-
-        .resource-item {
-            background: rgba(25, 28, 15, 0.5);
-            padding: 10px;
-            margin: 5px 0;
-            border-radius: 5px;
-        }
-
-        .resource-buttons {
-            display: flex;
-            gap: 5px;
-        }
-
-        .mini-calculator {
-            margin-top: 30px;
-            padding: 15px;
-            background: rgba(25, 28, 15, 0.5);
-            border-radius: 10px;
-            max-width: 300px;
-            margin-left: auto;
-            margin-right: auto;
-        }
-
-        .calc-display {
-            width: 100%;
-            margin-bottom: 10px;
-            font-size: 1.2em;
-            text-align: right;
-            padding: 8px;
-            background: rgba(25, 28, 15, 0.5);
-            border: 1px solid #00f3ff;
-            color: #00f3ff;
-        }
-
-        .calc-buttons {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 5px;
-        }
-
-        .login-screen {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(45deg, #191c19, #004267);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            z-index: 1000;
-        }
-
-        .login-container {
-            background: rgba(25, 28, 15, 0.9);
-            padding: 2rem;
-            border-radius: 15px;
-            border: 2px solid #00f3ff;
-            box-shadow: 0 0 20px #00f3ff;
-            max-width: 400px;
-            width: 90%;
-        }
-
-        .login-form {
-            display: flex;
-            flex-direction: column;
-            gap: 15px;
-        }
-
-        .form-group {
-            display: flex;
-            flex-direction: column;
-            gap: 5px;
-        }
-
-        .form-title {
-            text-align: center;
-            margin-bottom: 1.5rem;
-            font-family: 'Orbitron', sans-serif;
-            color: #00ff88;
-            text-shadow: 0 0 10px #00f3ff;
-        }
-
-        .form-toggle {
-            text-align: center;
-            margin-top: 1rem;
-            cursor: pointer;
-            color: #00f3ff;
-        }
-
-        .form-toggle:hover {
-            text-decoration: underline;
-        }
-
-        .hidden {
-            display: none;
-        }
-
-        @media (max-width: 768px) {
-            #dov img {
-                width: 100%;
-                height: auto;
-                max-width: 1200px;
-            }
-
-            .manager-access {
-                position: static;
-                justify-content: center;
-                margin-bottom: 20px;
-            }
-
-            .bank-controls {
-                grid-template-columns: 1fr;
-            }
-
-            .control-panel {
-                margin: 10px 0;
-            }
-
-            h1 {
-                font-size: 1.5em;
-            }
-
-            h2 {
-                font-size: 1.2em;
-            }
-
-            .player-balance {
-                margin: 10px 0;
-            }
-        }
-
-        @media (max-width: 480px) {
-            body {
-                padding: 10px;
-            }
-
-            #dov img {
-                height: 150px;
-            }
-
-            .manager-access {
-                flex-direction: column;
-            }
-
-            .manager-access button {
-                width: 100%;
-                margin: 5px 0;
-            }
-
-            input,
-            select,
-            button {
-                width: 100%;
-                margin: 5px 0;
-            }
-
-            .resource-control {
-                flex-wrap: wrap;
-            }
-
-            .calc-buttons button {
-                padding: 8px;
-                font-size: 0.8em;
-            }
-
-            .mini-calculator {
-                width: 100%;
-                max-width: none;
-            }
-
-            .resource-buttons {
-                width: 100%;
-                justify-content: space-between;
-            }
-        }
-
-        .container {
-            width: 95%;
-            padding: 10px;
-        }
-
-        .control-panel {
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-        }
-
-        select,
-        input {
-            width: 100%;
-            box-sizing: border-box;
-        }
-
-        .resource-control input {
-            width: 60px;
-        }
-
-        .bank-controls {
-            gap: 10px;
-        }
-
-        .manager-access button {
-            white-space: nowrap;
-        }
-    </style>
 </head>
 
 <body>
@@ -335,6 +20,11 @@
             <h2 class="form-title">🚀 Banco Galáctico 🪐</h2>
 
             <form class="login-form" id="createForm">
+                <div class="form-group">
+                    <label>Seu Nome:</label>
+                    <input type="text" id="playerName" required> 
+                </div>
+
                 <div class="form-group">
                     <label>Nome da Sala:</label>
                     <input type="text" id="roomName" required>
@@ -348,6 +38,10 @@
             </form>
 
             <form class="login-form hidden" id="joinForm">
+                <div class="form-group">
+                    <label>Seu Nome:</label>
+                    <input type="text" id="joinPlayerName" required>
+                </div>
                 <div class="form-group">
                     <label>Nome da Sala:</label>
                     <input type="text" id="joinRoomName" required>
@@ -375,7 +69,15 @@
         <div class="manager-access">
             <button onclick="loginManager()">Acesso do Gerente</button>
             <button onclick="reiniciarJogo()">Reiniciar Jogo</button>
+        </div>
+        
+        <div class="leave-room">
             <button onclick="sairDaSala()">Sair da Sala</button>
+        </div>
+
+        <div class="manager-info" id="managerInfo" style="display: none;">
+            <h2>Informações da Sala (Gerente)</h2>
+            <p id="roomInfo">Nome: <span id="roomNameDisplay"></span> | Senha: <span id="roomPasswordDisplay"></span></p>
         </div>
 
         <div id="balances"></div>
@@ -383,30 +85,15 @@
         <div class="bank-controls">
             <div class="control-panel">
                 <h2>Transferência Intergaláctica</h2>
-                <select id="fromPlayer">
-                    <option value="1">Jogador 1</option>
-                    <option value="2">Jogador 2</option>
-                    <option value="3">Jogador 3</option>
-                    <option value="4">Jogador 4</option>
-                </select>
-                <select id="toPlayer">
-                    <option value="1">Jogador 1</option>
-                    <option value="2">Jogador 2</option>
-                    <option value="3">Jogador 3</option>
-                    <option value="4">Jogador 4</option>
-                </select>
+                <select id="fromPlayer"></select>
+                <select id="toPlayer"></select>
                 <input type="number" id="transferAmount" placeholder="Quantidade">
                 <button onclick="transferir()">Transferir</button>
             </div>
 
             <div class="control-panel">
                 <h2>Operações Bancárias</h2>
-                <select id="player">
-                    <option value="1">Jogador 1</option>
-                    <option value="2">Jogador 2</option>
-                    <option value="3">Jogador 3</option>
-                    <option value="4">Jogador 4</option>
-                </select>
+                <select id="player"></select>
                 <input type="number" id="amount" placeholder="Quantidade">
                 <button onclick="depositar()">Depositar</button>
                 <button onclick="retirar()">Retirar</button>
@@ -442,86 +129,8 @@
             </div>
         </div>
     </div>
-    <script>
-
-        const socket = io("https://gamegaia.onrender.com");
-    </script>
-    <script>
-        document.addEventListener("DOMContentLoaded", function () {
-            let isManager = false;
-
-            async function fetchJSON(url, options = {}) {
-                const response = await fetch(url, options);
-                return response.json();
-            }
-
-            async function createRoom() {
-                const roomName = document.getElementById('roomName').value;
-                const password = document.getElementById('roomPassword').value;
-
-                if (!roomName || !password) return alert("Preencha todos os campos!");
-
-                const response = await fetchJSON("/create_room", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ roomName, password })
-                });
-
-                if (response.error) return alert(response.error);
-                enterGame("manager");
-            }
-
-            async function joinRoom() {
-                const roomName = document.getElementById('joinRoomName').value;
-                const password = document.getElementById('joinRoomPassword').value;
-                const role = document.getElementById('accessType').value;
-
-                const response = await fetchJSON("/join_room", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ roomName, password, role })
-                });
-
-                if (response.error) return alert(response.error);
-                enterGame(role);
-            }
-
-            async function updateBalances() {
-                const response = await fetchJSON("/get_state");
-
-                if (response.error) return alert(response.error);
-
-                let balancesHTML = "";
-                for (let player in response.players) {
-                    balancesHTML += `
-                <div class="player-balance">
-                    <h3>Jogador ${player}</h3>
-                    <div>Saldo: ${response.players[player].balance} Racunes</div>
-                </div>
-            `;
-                }
-
-                document.getElementById("balances").innerHTML = balancesHTML;
-            }
-
-            async function updateBalance(player, amount) {
-                await fetchJSON("/update_balance", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ player, amount })
-                });
-                updateBalances();
-            }
-
-            async function resetGame() {
-                await fetchJSON("/reset_game", { method: "POST" });
-                updateBalances();
-            }
-
-            updateBalances();
-        });
-
-    </script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/Estilo_Game.css') }}">
+    <script src="{{ url_for('static', filename='js/Main.js') }}"></script>
 </body>
 
 </html>
