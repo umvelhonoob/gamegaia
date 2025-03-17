@@ -1,13 +1,18 @@
 let isManager = false;
+let currentPlayerId = null;
+let socket = null;
 
 async function fetchJSON(url, options = {}) {
-    const response = await fetch(url, options);
-    return response.json();
+    try {
+        const response = await fetch(url, options);
+        if (!response.ok) throw new Error("Erro na requisição: " + response.status);
+        return response.json();
+    } catch (error) {
+        alert("Erro de conexão: " + error.message);
+        throw error;
+    }
 }
 
-let currentPlayerId = null; // Variável global para rastrear o ID do jogador atual
-
-// Atualize createRoom e joinRoom para armazenar o playerId
 async function createRoom() {
     const roomName = document.getElementById('roomName').value;
     const password = document.getElementById('roomPassword').value;
@@ -23,7 +28,7 @@ async function createRoom() {
 
     if (response.error) return alert(response.error);
     isManager = true;
-    currentPlayerId = response.playerId; // Armazena o ID do jogador
+    currentPlayerId = response.playerId;
     enterGame("manager");
 }
 
@@ -35,7 +40,7 @@ async function joinRoom() {
 
     if (!roomName || !password || !playerName) return alert("Preencha todos os campos!");
 
-    const response = await fetchJSON("/Entrar_Sala", {
+    const response = await fetchJSON("/Entrar_Sala", {  // Alterado de /join_room para /Entrar_Sala
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ roomName, password, role, playerName })
@@ -43,27 +48,28 @@ async function joinRoom() {
 
     if (response.error) return alert(response.error);
     isManager = role === "manager";
-    currentPlayerId = response.playerId; // Armazena o ID do jogador (null para observadores)
+    currentPlayerId = response.playerId;
     enterGame(role);
 }
 
-
 async function sairDaSala() {
-    if (currentPlayerId) {
-        await fetchJSON("/Sair_Sala", {
+    if (currentPlayerId || sessionStorage.getItem("role")) {
+        const isObserver = sessionStorage.getItem("role") === "observer";
+        await fetchJSON("/Sair_Sala", {  // Alterado de /leave_room para /Sair_Sala
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ playerId: currentPlayerId })
+            body: JSON.stringify({ playerId: currentPlayerId, isObserver })
         });
-        await updateBalances(); // Força a atualização imediata após a saída
+    }
+    if (socket) {
+        socket.disconnect();
     }
 
     document.getElementById("gameContainer").style.display = "none";
     document.getElementById("loginScreen").style.display = "block";
     isManager = false;
     currentPlayerId = null;
-
-    // Limpa os campos de entrada
+    sessionStorage.removeItem("role");
     document.getElementById("roomName").value = "";
     document.getElementById("roomPassword").value = "";
     document.getElementById("joinRoomName").value = "";
@@ -74,44 +80,31 @@ async function sairDaSala() {
 
 let lastPlayerCount = 0;
 
-async function updateBalances() {
-    const stateResponse = await fetchJSON("/get_state");
-    const observerResponse = await fetchJSON("/get_observers");
+function updateBalances(data) {
+    const state = data.state;
+    const observers = data.observers;
 
-    if (stateResponse.error) {
-        console.error(stateResponse.error);
-        return;
-    }
+    let balancesHTML = `<h2>Saldo Geral: ${state.financial_balance} Racunes</h2>`;
+    balancesHTML += `<span>👁️ Observadores: ${observers}</span>`;
 
-    // Atualiza saldo geral e observadores
-    let balancesHTML = `<h2>Saldo Geral: ${stateResponse.financial_balance} Racunes</h2>`;
-    if (!observerResponse.error) {
-        balancesHTML += `<span>👁️ Observadores: ${observerResponse.observers}</span>`;
-    }
-
-    // Atualiza a listagem de saldos
-    for (let player in stateResponse.players) {
+    for (let player in state.players) {
         balancesHTML += `
             <div class="player-balance">
-                <h3>${stateResponse.players[player].name}</h3>
-                <div>Saldo: ${stateResponse.players[player].balance} Racunes</div>
+                <h3>${state.players[player].name}</h3>
+                <div>Saldo: ${state.players[player].balance} Racunes</div>
             </div>
         `;
     }
     document.getElementById("balances").innerHTML = balancesHTML;
+    updatePlayerSelects(state.players);
 
-    // Atualiza a lista de transferência
-    updatePlayerSelects(stateResponse.players);
-
-    // Verifica se o número de jogadores mudou (entrada ou saída)
-    const currentPlayerCount = Object.keys(stateResponse.players).length;
+    const currentPlayerCount = Object.keys(state.players).length;
     if (currentPlayerCount !== lastPlayerCount) {
-        initializeResources(stateResponse.players); // Recria os recursos
+        initializeResources(state.players);
         lastPlayerCount = currentPlayerCount;
     } else {
-        // Atualiza apenas os números dos recursos existentes
-        for (let player in stateResponse.players) {
-            const res = stateResponse.players[player].resources;
+        for (let player in state.players) {
+            const res = state.players[player].resources;
             const spans = {
                 combustivel: document.querySelector(`#resources span[data-player="${player}"][data-resource="combustivel"]`),
                 combustivel_salto: document.querySelector(`#resources span[data-player="${player}"][data-resource="combustivel_salto"]`),
@@ -126,46 +119,23 @@ async function updateBalances() {
     }
 }
 
-
-// Função auxiliar para atualizar os selects de jogadores
-// Função ajustada para usar nomes personalizados
 function updatePlayerSelects(players) {
     const selects = ["fromPlayer", "toPlayer", "player"];
     selects.forEach(selectId => {
         const select = document.getElementById(selectId);
         const currentValue = select.value;
-        select.innerHTML = ""; // Limpa as opções atuais
-        
-        // Itera sobre os jogadores e usa o nome personalizado
+        select.innerHTML = "";
         for (let playerId in players) {
             const option = document.createElement("option");
-            option.value = playerId; // O valor continua sendo o ID do jogador
-            option.text = players[playerId].name; // O texto exibido é o nome personalizado
+            option.value = playerId;
+            option.text = players[playerId].name;
             select.appendChild(option);
         }
-        
-        // Restaura o valor selecionado, se ainda existir
         if (currentValue && players[currentValue]) {
             select.value = currentValue;
         }
     });
 }
-
-async function updateBalance(player, amount) {
-    await fetchJSON("/update_balance", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ player, amount })
-    });
-    updateBalances();
-}
-
-async function resetGame() {
-    await fetchJSON("/reset_game", { method: "POST" });
-    updateBalances();
-}
-
-updateBalances();
 
 function initializeResources(players) {
     let resourcesHTML = "";
@@ -206,8 +176,8 @@ function initializeResources(players) {
                 </div>
                 <div class="resource-control">
                     <span data-player="${player}" data-resource="motor_salto">MOTOR SALTO: ${res.motor_salto}</span>
-                    ${isManager ? `<input type="number" id="input-${player}-motor_salto" placeholder="Quantidade">
-                    
+                    ${isManager ? `
+                    <input type="number" id="input-${player}-motor_salto" placeholder="Quantidade">
                     <div class="resource-buttons">
                         <button onclick="adicionarRecurso('${player}', 'motor_salto')">+</button>
                         <button onclick="removerRecurso('${player}', 'motor_salto')">-</button>
@@ -219,7 +189,7 @@ function initializeResources(players) {
     }
     document.getElementById("resources").innerHTML = resourcesHTML || "<p>Sem jogadores na sala.</p>";
 }
-// Ajuste no enterGame para chamar a inicialização
+
 function enterGame(role) {
     document.getElementById("loginScreen").style.display = "none";
     document.getElementById("gameContainer").style.display = "block";
@@ -227,6 +197,7 @@ function enterGame(role) {
     const managerControls = document.querySelector(".manager-access");
     const managerInfo = document.getElementById("managerInfo");
     
+    sessionStorage.setItem("role", role);
     if (role === "manager") {
         managerControls.style.display = "block";
         managerInfo.style.display = "block";
@@ -242,50 +213,79 @@ function enterGame(role) {
     fetchJSON("/get_state").then(response => {
         if (!response.error) {
             initializeResources(response.players);
-            updatePlayerSelects(response.players); // Preenche os selects inicialmente
+            updatePlayerSelects(response.players);
         }
     });
     
-    startRealtimeUpdates();
+    // Inicia a conexão Socket.IO
+    socket = io.connect(`https://${window.location.host}`);
+    socket.on("connect", () => {
+        console.log("Conectado ao Socket.IO");
+    });
+    socket.on("update", (data) => {
+        updateBalances(data);
+    });
+    socket.on("error", (data) => {
+        alert(data.message);
+        sairDaSala();
+    });
+    socket.on("disconnect", () => {
+        console.log("Desconectado do Socket.IO");
+        sairDaSala();
+    });
 }
 
-
-function loginManager() {
-    if (isManager) {
-        alert("Você já está como gerente!");
-        // Aqui você pode adicionar mais lógica para controles de gerente
-    } else {
-        alert("Acesso negado! Apenas gerentes podem usar esta função.");
-    }
-}
-function reiniciarJogo() {
-    if (isManager) {
-        resetGame();
-    } else {
-        alert("Apenas o gerente pode reiniciar o jogo!");
-    }
+async function updateBalance(player, amount) {
+    await fetchJSON("/update_balance", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ player, amount })
+    });
 }
 
+async function resetGame() {
+    await fetchJSON("/reset_game", { method: "POST" });
+}
+
+async function adicionarRecurso(player, resource) {
+    if (!isManager) return alert("Apenas o gerente pode alterar recursos!");
+    const input = document.getElementById(`input-${player}-${resource}`);
+    const amount = parseInt(input.value) || 0;
+    if (amount <= 0) return alert("Digite uma quantidade válida!");
+    await fetchJSON("/update_resource", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ player, resource, amount })
+    });
+    input.value = "";
+}
+
+async function removerRecurso(player, resource) {
+    if (!isManager) return alert("Apenas o gerente pode alterar recursos!");
+    const input = document.getElementById(`input-${player}-${resource}`);
+    const amount = parseInt(input.value) || 0;
+    if (amount <= 0) return alert("Digite uma quantidade válida!");
+    await fetchJSON("/update_resource", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ player, resource, amount: -amount })
+    });
+    input.value = "";
+}
 
 async function depositar() {
     if (!isManager) return alert("Apenas o gerente pode fazer depósitos!");
-    
     const player = document.getElementById("player").value;
     const amount = parseInt(document.getElementById("amount").value);
-
     if (!amount || amount <= 0) return alert("Digite uma quantidade válida!");
-    
     await updateBalance(player, amount);
 }
 
 async function retirar() {
     if (!isManager) return alert("Apenas o gerente pode fazer retiradas!");
-    
     const player = document.getElementById("player").value;
     const amount = parseInt(document.getElementById("amount").value);
-
     if (!amount || amount <= 0) return alert("Digite uma quantidade válida!");
-    
     await updateBalance(player, -amount);
 }
 
@@ -298,30 +298,50 @@ async function transferir() {
     if (fromPlayer === toPlayer) return alert("Escolha jogadores diferentes!");
 
     if (isManager) {
-        // Gerente pode transferir livremente
         await updateBalance(fromPlayer, -amount);
         await updateBalance(toPlayer, amount);
     } else {
-        // Não gerente só pode transferir de si mesmo
         if (fromPlayer !== currentPlayerId) {
             return alert("Você só pode transferir seu próprio saldo!");
         }
-        
-        // Verifica se o jogador tem saldo suficiente
         const stateResponse = await fetchJSON("/get_state");
         const playerBalance = stateResponse.players[fromPlayer].balance;
         if (playerBalance < amount) {
             return alert("Saldo insuficiente!");
         }
-
         await updateBalance(fromPlayer, -amount);
         await updateBalance(toPlayer, amount);
     }
 }
 
+function loginManager() {
+    if (isManager) {
+        alert("Você já está como gerente!");
+    } else {
+        alert("Acesso negado! Apenas gerentes podem usar esta função.");
+    }
+}
+
+async function depositarTodos() {
+    if (!isManager) return alert("Apenas o gerente pode fazer depósitos!");
+    const amount = parseInt(document.getElementById("depositAllAmount").value);
+    if (!amount || amount <= 0) return alert("Digite uma quantidade válida!");
+    await fetchJSON("/deposit_all", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ amount })
+    });
+    document.getElementById("depositAllAmount").value = "";
+}
+function reiniciarJogo() {
+    if (isManager) {
+        resetGame();
+    } else {
+        alert("Apenas o gerente pode reiniciar o jogo!");
+    }
+}
 
 let calcInput = "";
-
 function clearCalc() {
     calcInput = "";
     document.getElementById("calcInput").value = "";
@@ -345,7 +365,6 @@ function calculate() {
 function toggleForms() {
     const createForm = document.getElementById("createForm");
     const joinForm = document.getElementById("joinForm");
-    
     if (createForm.classList.contains("hidden")) {
         createForm.classList.remove("hidden");
         joinForm.classList.add("hidden");
@@ -353,57 +372,4 @@ function toggleForms() {
         createForm.classList.add("hidden");
         joinForm.classList.remove("hidden");
     }
-}
-
-async function fetchJSON(url, options = {}) {
-    try {
-        const response = await fetch(url, options);
-        if (!response.ok) throw new Error("Erro na requisição: " + response.status);
-        return response.json();
-    } catch (error) {
-        alert("Erro de conexão: " + error.message);
-        throw error;
-    }
-}
-
-// Atualiza os saldos e recursos a cada segundo quando o jogo está ativo
-function startRealtimeUpdates() {
-    setInterval(() => {
-        if (document.getElementById("gameContainer").style.display === "block") {
-            updateBalances();
-        }
-    }, 1000); // 1000 ms = 1 segundo
-}
-
-// Inicia as atualizações em tempo real ao carregar a página
-//startRealtimeUpdates();
-
-async function adicionarRecurso(player, resource) {
-    if (!isManager) return alert("Apenas o gerente pode alterar recursos!");
-    const input = document.getElementById(`input-${player}-${resource}`);
-    const amount = parseInt(input.value) || 0;
-    if (amount <= 0) return alert("Digite uma quantidade válida!");
-
-    await fetchJSON("/update_resource", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ player, resource, amount })
-    });
-    input.value = ""; // Limpa o campo
-    updateBalances();
-}
-
-async function removerRecurso(player, resource) {
-    if (!isManager) return alert("Apenas o gerente pode alterar recursos!");
-    const input = document.getElementById(`input-${player}-${resource}`);
-    const amount = parseInt(input.value) || 0;
-    if (amount <= 0) return alert("Digite uma quantidade válida!");
-
-    await fetchJSON("/update_resource", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ player, resource, amount: -amount })
-    });
-    input.value = ""; // Limpa o campo
-    updateBalances();
 }

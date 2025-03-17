@@ -82,7 +82,7 @@
 
         <div id="balances"></div>
 
-        <div class="bank-controls">
+        <div class="bank-controls">            
             <div class="control-panel">
                 <h2>Transferência Intergaláctica</h2>
                 <select id="fromPlayer"></select>
@@ -98,6 +98,16 @@
                 <button onclick="depositar()">Depositar</button>
                 <button onclick="retirar()">Retirar</button>
             </div>
+        </div>
+        
+        <div class="bank-controls" style="display: flex; flex-wrap: wrap; justify-content: center; gap: 20px;">            
+
+            <div class="control-panel" style="width: 100%;">                
+                <h2>Inicio de Rodada</h2>
+                <input type="number" id="depositAllAmount" placeholder="Quantidade">
+                <button onclick="depositarTodos()">Depositar para Todos</button>
+            </div>
+
         </div>
 
         <div class="resource-panel">
@@ -130,6 +140,7 @@
         </div>
     </div>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/Estilo_Game.css') }}">
+    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
     <script src="{{ url_for('static', filename='js/Main.js') }}"></script>
 </body>
 
